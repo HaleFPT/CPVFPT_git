@@ -29,3 +29,24 @@ computing the complete function explicitly. The idea is to replace each pixel wi
 neighborhood and whose value is within a distance d. You are required to implement the Mean shift algorithm for segmentation.
 '''
 
+import cv2 as cv
+import matplotlib.pyplot as plt
+import numpy as np
+from skimage.segmentation import active_contour
+
+cam = cv.VideoCapture(0)
+
+
+# cam = cv2.VideoCapture('video.mp4')
+
+# Preprocessing
+def preprocessing(img):
+    img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    img = cv.resize(img, (0, 0), fx=0.5, fy=0.5)
+    return img
+
+#function 1: Snakes algorithm Opencv
+def snakes(img):
+
+
+
