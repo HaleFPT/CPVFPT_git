@@ -33,6 +33,7 @@ import cv2 as cv
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+from matplotlib.widgets import Slider
 
 # Function 1: Snakes algorithm (active contour model)
 class Snake:
@@ -63,12 +64,6 @@ class Snake:
     w_edge = 0.5        # The weight to the edge energy.
     w_term = 0.5        # The weight to the term energy.
 
-
-
-
-    #################################
-    # Constructor
-    #################################
     def __init__( self, image = None, closed = True ):
         """
         Object constructor
@@ -97,12 +92,6 @@ class Snake:
         half_width = math.floor( self.width / 2 )
         half_height = math.floor( self.height / 2 )
 
-
-        ####################################
-        # Generating the starting points   #
-        ####################################
-        # If it is a closed snake, my initial guess will be a circle
-        # that covers the maximum of the image
         if self.closed:
             n = self.n_starting_points
             radius = half_width if half_width < half_height else half_height
@@ -128,7 +117,7 @@ class Snake:
         img = self.image.copy()
 
         # Drawing lines between points
-        point_color = ( 0, 255, 255 )     # BGR RED
+        point_color = ( 0, 255, 255 )   # BGR RED
         line_color = ( 128, 0, 0 )      # BGR half blue
         thickness = 2                   # Thickness of the lines and circles
 
@@ -146,8 +135,6 @@ class Snake:
 
         return img
 
-
-
     def dist( a, b ):
         """
         Calculates the euclidean distance between two points
@@ -158,8 +145,6 @@ class Snake:
 
         return np.sqrt( np.sum( ( a - b ) ** 2 ) )
 
-
-
     def normalize( kernel ):
         """
         Normalizes a kernel
@@ -169,8 +154,6 @@ class Snake:
 
         abs_sum = np.sum( [ abs( x ) for x in kernel ] )
         return kernel / abs_sum if abs_sum != 0 else kernel
-
-
 
     def get_length(self):
         """
@@ -183,8 +166,6 @@ class Snake:
             n_points -= 1
 
         return np.sum( [ Snake.dist( self.points[i], self.points[ (i+1)%n_points  ] ) for i in range( 0, n_points ) ] )
-
-
 
     def f_uniformity( self, p, prev ):
         """
@@ -201,8 +182,6 @@ class Snake:
         dun = abs( un - avg_dist ) #
 
         return dun**2
-
-
 
     def f_curvature( self, p, prev, next ):
         """
@@ -230,8 +209,6 @@ class Snake:
 
         return cn
 
-
-
     def f_line( self, p ):
         """
         The line energy (The tendency to move the curve towards dark / lighter areas)
@@ -244,8 +221,6 @@ class Snake:
             return np.finfo(np.float64).max
 
         return self.binary[ p[1] ][ p[0] ]
-
-
 
     def f_edge( self, p ):
         """
@@ -260,8 +235,6 @@ class Snake:
 
         return -( self.gradientX[ p[1] ][ p[0] ]**2 + self.gradientY[ p[1] ][ p[0] ]**2  )
 
-
-
     def f_term( self, p, prev, next ):
         """
         Not implemented. The tendency to move the snake towards corners and terminations.
@@ -269,8 +242,6 @@ class Snake:
         :return: The term energy.
         """
         return 0
-
-
 
     def f_conf( self, p , prev, next ):
         """
@@ -283,8 +254,6 @@ class Snake:
         """
         import random
         return random.random()
-
-
 
     def remove_overlaping_points( self ):
         """
@@ -315,10 +284,6 @@ class Snake:
                     snake_size = len( self.points )
                     break
 
-
-
-
-
     def add_missing_points( self ):
         """
         Add points to the spline if the distance between two points is bigger than
@@ -344,9 +309,6 @@ class Snake:
 
                 self.points.insert( i+1, new_point )
                 snake_size += 1
-
-
-
 
     def step( self ):
         """
@@ -438,16 +400,12 @@ class Snake:
 
         return changed
 
-
-
     def set_alpha( self, x ):
         """
         Utility function (used by cvCreateTrackbar) to set the value of alpha.
         :param x: The new value of alpha (scaled by 100)
         """
         self.alpha = x / 100
-
-
 
     def set_beta( self, x ):
         """
@@ -456,16 +414,12 @@ class Snake:
         """
         self.beta = x / 100
 
-
-
     def set_delta( self, x ):
         """
         Utility function (used by cvCreateTrackbar) to set the value of delta.
         :param x: The new value of delta (scaled by 100)
         """
         self.delta = x / 100
-
-
 
     def set_w_line( self, x ):
         """
@@ -474,8 +428,6 @@ class Snake:
         """
         self.w_line = x / 100
 
-
-
     def set_w_edge( self, x ):
         """
         Utility function (used by cvCreateTrackbar) to set the value of w_edge.
@@ -483,15 +435,13 @@ class Snake:
         """
         self.w_edge = x / 100
 
-
-
     def set_w_term( self, x ):
         """
         Utility function (used by cvCreateTrackbar) to set the value of w_term.
         :param x: The new value of w_term (scaled by 100)
         """
         self.w_term = x / 100
-
+'''
 def main():
     # Load the image
     image = cv.imread("Harry Potter.png")
@@ -530,6 +480,224 @@ def main():
 
 if __name__ == "__main__":
     main()
+'''
+
+def nothing(x):
+    pass
+
+'''
+def watershed_original(gray, img):
+    cv.namedWindow("thresh", cv.WINDOW_NORMAL)
+    cv.createTrackbar("interation", "thresh", 0, 10, nothing) # number of iterations for dilation
+
+    while True:
+
+        interation = cv.getTrackbarPos("interation", "thresh")
+
+        # thresholding
+        ret, thresh = cv.threshold(gray, 0, 255, cv.THRESH_BINARY_INV+cv.THRESH_OTSU) # otsu thresholding
+
+        # dilation
+        kernel = np.ones((3,3), np.uint8) # kernel for dilation
+        opening = cv.morphologyEx(thresh, cv.MORPH_OPEN, kernel, iterations = 2)
+        sure_bg = cv.dilate(opening, kernel, iterations = interation)
+
+        # Perform distance transform to obtain the distance to the closest background pixel
+        dist_transform = cv.distanceTransform(opening, cv.DIST_L2, 5)
+        ret, sure_fg = cv.threshold(dist_transform, 0.7 * dist_transform.max(), 255, 0)
+
+        # Find the unknown region as the area between sure background and sure foreground regions
+        sure_fg = np.uint8(sure_fg)
+        unknown = cv.subtract(sure_bg, sure_fg)
+
+        # Perform marker-based watershed segmentation
+        ret, markers = cv.connectedComponents(sure_fg)
+        markers = markers + 1
+        markers[unknown == 255] = 0
+        markers = cv.watershed(img, markers)
+        img[markers == -1] = [0, 255, 0]
+
+
+        # display
+        cv.imshow("thresh", img)
+        cv.imshow("opening", opening)
+        cv.imshow("sure_bg", sure_bg)
+        cv.imshow("dist_transform", dist_transform)
+        cv.imshow("sure_fg", sure_fg)
+        cv.imshow("unknown", unknown)
+
+
+        # exit
+        if cv.waitKey(1) == 27:
+            break
+
+    cv.destroyAllWindows()
+'''
+
+def watershed(gray, img):
+    cv.namedWindow("thresh")
+    cv.createTrackbar("interation", "thresh", 0, 10, nothing) # number of iterations for dilation
+    cv.createTrackbar("max", "thresh", 100, 255, nothing) # number of iterations for dilation
+    cv.createTrackbar("min", "thresh", 0, 1, nothing) # number of iterations for dilation
+    cv.createTrackbar("kernel", "thresh", 0, 10, nothing) # number of iterations for dilation
+    cv.createTrackbar("x", "thresh", 0, 100, nothing)
+
+    cv.setTrackbarPos("interation", "thresh", 2)
+    cv.setTrackbarPos("max", "thresh", 255)
+    cv.setTrackbarPos("min", "thresh", 0)
+    cv.setTrackbarPos("kernel", "thresh", 3)
+    cv.setTrackbarPos("x", "thresh", 70)
+
+
+    while True:
+        # get trackbar values
+        interation = cv.getTrackbarPos("interation", "thresh")
+
+        max = cv.getTrackbarPos("max", "thresh")
+        min = cv.getTrackbarPos("min", "thresh")
+        a = cv.getTrackbarPos("kernel", "thresh")
+        x = cv.getTrackbarPos("x", "thresh")/100
 
 
 
+        # thresholding
+        ret, thresh = cv.threshold(gray, min, max, cv.THRESH_BINARY_INV+cv.THRESH_OTSU) # otsu thresholding
+        kernel = np.ones((a, a), np.uint8)
+        opening = cv.morphologyEx(thresh, cv.MORPH_OPEN, kernel, iterations=2)
+
+        # compute thr gradient
+        gradient = cv.morphologyEx(thresh, cv.MORPH_GRADIENT, kernel)
+        gradient = cv.convertScaleAbs(gradient)
+
+        sure_bg = cv.dilate(opening, kernel, iterations=interation)
+
+        # Perform distance transform to obtain the distance to the closest background pixel
+        dist_transform = cv.distanceTransform(opening, cv.DIST_L2, 5)
+        ret, sure_fg = cv.threshold(dist_transform, x * dist_transform.max(), max, min)
+
+        # Find the unknown region as the area between sure background and sure foreground regions
+        sure_fg = np.uint8(sure_fg)
+        unknown = cv.subtract(sure_bg, sure_fg)
+
+        # Perform marker-based watershed segmentation
+        ret, markers = cv.connectedComponents(sure_fg)
+        markers = markers + 1
+        markers[unknown == 255] = 0
+        markers = cv.watershed(img, markers)
+        img[markers == -1] = [0, 255, 0]
+
+
+        #plot imagesrrr
+        cv.imshow("original", img)
+        cv.imshow("opening", opening)
+        cv.imshow("sure_bg", sure_bg)
+        cv.imshow("dist_transform", dist_transform)
+        cv.imshow("sure_fg", sure_fg)
+        cv.imshow("unknown", unknown)
+        cv.imshow("gradient", gradient)
+        cv.imshow("thresh", thresh)
+
+        # exit
+        if cv.waitKey(1) == 27:
+            break
+
+
+    cv.destroyAllWindows()
+
+
+
+
+
+def main():
+    # Load image using OpenCV
+    image = cv.imread('water_coins.jpg')
+    image = cv.resize(image, (0,0), fx=1, fy=1)
+
+    # Convert image to grayscale
+    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+
+    # Apply watershed segmentation
+    watershed(gray, image)
+
+
+    # cv.imshow("original", image)
+    # cv.waitKey(0)
+    # cv.destroyAllWindows()
+    # # Convert image to grayscale
+    # gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    #
+    # # Apply watershed segmentation
+    # watershed_original(gray, image)
+
+
+'''# Define function to apply watershed segmentation
+def apply_watershed(threshold, im, image, gray, min_markers, max_markers, fig):
+    # Threshold image
+    ret, thresh = cv.threshold(gray, threshold, 255, cv.THRESH_BINARY)
+
+    # Generate markers using connected components
+    num_markers, markers = cv.connectedComponents(thresh)
+
+    # Set markers outside range to 0
+    markers[(markers < min_markers) | (markers > max_markers)] = 0
+
+    # Apply watershed segmentation
+    markers = cv.watershed(image, markers)
+
+    # Apply color map to markers for visualization
+    markers_display = cv.applyColorMap(np.uint8(markers), cv.COLORMAP_JET)
+
+    # Display segmented image
+    im.set_data(markers_display)
+    fig.canvas.draw_idle()
+
+def watershed_sliders():
+    # Load image using OpenCV
+    image = cv.imread('tattoo.jpg')
+
+    # Convert image to grayscale
+    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+
+    # Create plot
+    fig, ax = plt.subplots()
+    plt.subplots_adjust(bottom=0.3)  # Make room for sliders
+
+    # Display image
+    im = ax.imshow(image)
+
+    # Create sliders
+    ax_threshold = plt.axes([0.25, 0.15, 0.65, 0.03])  # [left, bottom, width, height]
+    threshold_slider = Slider(ax=ax_threshold,
+                              label='Threshold',
+                              valmin=0,
+                              valmax=255,
+                              valinit=127)
+
+    ax_min_markers = plt.axes([0.25, 0.1, 0.65, 0.03])  # [left, bottom, width, height]
+    min_markers_slider = Slider(ax=ax_min_markers,
+                                label='Min markers',
+                                valmin=0,
+                                valmax=255,
+                                valinit=100)
+
+    ax_max_markers = plt.axes([0.25, 0.05, 0.65, 0.03])  # [left, bottom, width, height]
+    max_markers_slider = Slider(ax=ax_max_markers,
+                                label='Max markers',
+                                valmin=0,
+                                valmax=255,
+                                valinit=200)
+
+    # Register callbacks with sliders
+    threshold_slider.on_changed(
+        lambda threshold: apply_watershed(threshold, im, image, gray, min_markers_slider.val, max_markers_slider.val, fig))
+    min_markers_slider.on_changed(
+        lambda min_markers: apply_watershed(im, image, gray, threshold_slider.val, min_markers, max_markers_slider.val, fig))
+    max_markers_slider.on_changed(
+        lambda max_markers: apply_watershed(im, image, gray, threshold_slider.val, min_markers_slider.val, max_markers, fig))
+
+    # Show plot
+    plt.show()'''
+
+if __name__ == '__main__':
+    # watershed_sliders()
+    main()
