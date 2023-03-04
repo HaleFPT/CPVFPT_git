@@ -34,19 +34,8 @@ def RANSAC_feature_matching(img_captured, img_changed):
     imgKp_Ref = cv.drawKeypoints(img, keyPoint1, 0, (0, 222, 0), None)
     imgKp_Ref = cv.resize(imgKp_Ref, (img.shape[1] // 2, img.shape[0] // 2))
 
-    # Display keypoints for changed image in red color
-    imgKp_Changed = cv.drawKeypoints(img_changed, keyPoint2, 0, (222, 0, 0), None)
-    imgKp_Changed = cv.resize(imgKp_Changed, (img.shape[1] // 2, img.shape[0] // 2))
-
-    # Display both images
-    plt.figure(figsize=(20, 10))
-    plt.subplot(1, 2, 1)
-    plt.imshow(imgKp_Ref)
-    plt.title('Reference Image')
-    plt.subplot(1, 2, 2)
-    plt.imshow(imgKp_Changed)
-    plt.title('Changed Image')
-    plt.show()
+    cv.imshow('Key Points', imgKp_Ref)
+    cv.waitKey(0)
 
     # Match features between two images using Brute Force matcher with Hamming distance
     matcher = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
@@ -61,8 +50,23 @@ def RANSAC_feature_matching(img_captured, img_changed):
     matches = matches[:int(len(matches) * 0.9)]
     no_of_matches = len(matches)
 
+    # Display keypoints for changed image in red color
+    imgKp_Changed = cv.drawKeypoints(img_changed, keyPoint2, 0, (222, 0, 0), None)
+    imgKp_Changed = cv.resize(imgKp_Changed, (img.shape[1] // 2, img.shape[0] // 2))
+
+    # Display both images
+    plt.figure(figsize=(20, 10))
+    plt.subplot(1, 2, 1)
+    plt.imshow(imgKp_Ref)
+    plt.title('Reference Image')
+    plt.subplot(1, 2, 2)
+    plt.imshow(imgKp_Changed)
+    plt.title('Changed Image')
+    plt.show()
+
     #display the top 100 matches
     img_matches = cv.drawMatches(img, keyPoint1, img_changed, keyPoint2, matches[:100], None, flags=2)
+
     plt.figure(figsize=(20, 10))
     plt.imshow(img_matches)
     plt.title('Top 100 matches')
