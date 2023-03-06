@@ -1,90 +1,130 @@
-import cv2 as cv
+#RANSAC feature matching and alignment
+
 import numpy as np
+import cv2 as cv
+import matplotlib.pyplot as plt
+import os
+import sys
+import time
 
 
-def image_alignment(imgRef, imgTest):
-    # Convert the images to grayscale.
-    imgRefGray = cv.cvtColor(imgRef, cv.COLOR_BGR2GRAY)
-    imgTestGray = cv.cvtColor(imgTest, cv.COLOR_BGR2GRAY)
+def RANSAC_feature_matching(img_captured, img_changed):
+    # Read the images
+    img = cv.imread(img_captured)
+    img_changed = cv.imread(img_changed)
+    img = cv.GaussianBlur(img, (3, 3), 0)
+    img_changed = cv.GaussianBlur(img_changed, (3, 3), 0)
+    img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+    img_changed = cv.cvtColor(img_changed, cv.COLOR_BGR2RGB)
 
-    # Detect the keypoints and descriptors using SIFT.
-    sift = cv.SIFT_create()
-    kp1, des1 = sift.detectAndCompute(imgRefGray, None)
-    kp2, des2 = sift.detectAndCompute(imgTestGray, None)
 
-    # Match the keypoints using KNN matcher.
-    matcher = cv.DescriptorMatcher_create(cv.DescriptorMatcher_FLANNBASED)
-    knn_matches = matcher.knnMatch(des1, des2, 2)
+    # Convert to grayscale
+    img_grey = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
+    height, width= img_grey.shape
+    img_changed_grey = cv.cvtColor(img_changed, cv.COLOR_RGB2GRAY)
 
-    # Filter matches using the Lowe's ratio test.
-    ratio_thresh = 0.75
-    good_matches = []
-    for m, n in knn_matches:
-        if m.distance < ratio_thresh * n.distance:
-            good_matches.append(m)
+    # Configure ORB feature detector Algorithm
+    orb_detector = cv.ORB_create(1000)
 
-    # Draw the matches.
-    img_matches = np.empty((max(imgRef.shape[0], imgTest.shape[0]), imgRef.shape[1] + imgTest.shape[1], 3),
-                           dtype=np.uint8)
-    cv.drawMatches(imgRef, kp1, imgTest, kp2, good_matches, img_matches,
-                   flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    # Extract key points and descriptors for both images
+    keyPoint1, des1 = orb_detector.detectAndCompute(img_grey, None)
+    keyPoint2, des2 = orb_detector.detectAndCompute(img_changed_grey, None)
 
-    # Localize the object.
-    src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-    dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+    # Display keypoints for reference image in green color
+    imgKp_Ref = cv.drawKeypoints(img, keyPoint1, 0, (0, 222, 0), None)
+    imgKp_Ref = cv.resize(imgKp_Ref, (img.shape[1] // 2, img.shape[0] // 2))
+
+    cv.imshow('Key Points', imgKp_Ref)
+    cv.waitKey(0)
+
+    # Match features between two images using Brute Force matcher with Hamming distance
+    matcher = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
+
+    # Match the two sets of descriptors.
+    matches = list(matcher.match(des1, des2))
+
+    # Sort matches on the basis of their Hamming distance.
+    matches.sort(key=lambda x: x.distance)
+
+    # take the top 75% matches forward.
+    matches = matches[:int(len(matches) * 0.9)]
+    no_of_matches = len(matches)
+
+    # Display keypoints for changed image in red color
+    imgKp_Changed = cv.drawKeypoints(img_changed, keyPoint2, 0, (222, 0, 0), None)
+    imgKp_Changed = cv.resize(imgKp_Changed, (img.shape[1] // 2, img.shape[0] // 2))
+
+    # Display both images
+    plt.figure(figsize=(20, 10))
+    plt.subplot(1, 2, 1)
+    plt.imshow(imgKp_Ref)
+    plt.title('Reference Image')
+    plt.subplot(1, 2, 2)
+    plt.imshow(imgKp_Changed)
+    plt.title('Changed Image')
+    plt.show()
+
+    #display the top 100 matches
+    img_matches = cv.drawMatches(img, keyPoint1, img_changed, keyPoint2, matches[:100], None, flags=2)
+
+    plt.figure(figsize=(20, 10))
+    plt.imshow(img_matches)
+    plt.title('Top 100 matches')
+    plt.show()
+
+
+    # Define empty matrices of shape no_of_matches * 2.
+    p1 = np.zeros((no_of_matches, 2))
+    p2 = np.zeros((no_of_matches, 2))
+
+    for i in range(len(matches)):
+        p1[i, :] = keyPoint1[matches[i].queryIdx].pt
+        p2[i, :] = keyPoint2[matches[i].trainIdx].pt
 
     # Find the homography matrix.
-    homography, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC)
+    homography, mask = cv.findHomography(p1, p2, cv.RANSAC)
 
-    # Use homography matrix to transform the unaligned image wrt the reference image.
-    height, width, channels = imgRef.shape
-    aligned_img = cv.warpPerspective(imgTest, homography, (width, height))
-    # Resizing the image to display in our screen (optional)
-    aligned_img = cv.resize(aligned_img, (width, height))
+    # Use this matrix to transform the
+    # colored image wrt the reference image.
+    transformed_img = cv.warpPerspective(img, homography, (width, height))
 
-    return aligned_img
-
+    # Shơw the output.
+    plt.figure(figsize=(20, 10))
+    plt.subplot(1, 2, 1)
+    plt.imshow(img)
+    plt.title('Reference Image')
+    plt.subplot(1, 2, 2)
+    plt.imshow(transformed_img)
+    plt.title('Changed Image')
+    plt.show()
 
 def main():
-    button_pressed = False
-    ref_img = None
-    test_img = None
-
     cam = cv.VideoCapture(0)
-    cv.namedWindow("Camera")
-    cv.namedWindow("Aligned")
-
+    captured = 0
     while True:
         ret, frame = cam.read()
+        cv.imshow('Camera', frame)
+
         if not ret:
-            print("Failed to grab frame")
             break
-
-        cv.imshow("Camera", frame)
-
         k = cv.waitKey(1)
-        if k % 256 == 27:
+
+        if k%256 == 27:
             # ESC pressed
             print("Escape hit, closing...")
             break
 
-        elif k % 256 == 32:
+        elif k%256 == 32:
             # SPACE pressed
-            button_pressed = not button_pressed
-            if button_pressed:
-                ref_img = frame.copy()
-                print("Reference image captured")
-            else:
-                test_img = frame.copy()
-                print("Test image captured")
-
-                # Align the test image with the reference image.
-                aligned_img = image_alignment(ref_img, test_img)
-                cv.imshow("Aligned", aligned_img)
-                print("Aligned image displayed")
-
+            img_name = "opencv_frame_{}.png".format(captured)
+            cv.imwrite(img_name, frame)
+            print("{} written!".format(img_name))
+            captured += 1
+            if captured == 2:
+                break
     cam.release()
     cv.destroyAllWindows()
+    RANSAC_feature_matching('opencv_frame_0.png', 'opencv_frame_1.png')
 
-
-main()
+if __name__ == '__main__':
+    main()
