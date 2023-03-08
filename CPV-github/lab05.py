@@ -23,8 +23,8 @@ def take_images():
     cv.destroyAllWindows()
 
 def preprocess_images():
-    img1 = cv.imread('img1.jpg')
-    img2 = cv.imread('img2.jpg')
+    img1 = cv.imread('images/img1.jpg')
+    img2 = cv.imread('images/img2.jpg')
     img1 = cv.cvtColor(img1, cv.COLOR_BGR2GRAY)
     img2 = cv.cvtColor(img2, cv.COLOR_BGR2GRAY)
     return img1, img2
@@ -41,24 +41,31 @@ def feature_base_alignment(img1,img2):
     matches = bf.match(des1,des2)
     # Sort them in the order of their distance.
     matches = sorted(matches, key = lambda x:x.distance)
-    # Good matches
+    # good matches
     good = int(len(matches)*0.15)
     matches = matches[:good]
     # Draw first 10 matches.
     img3 = cv.drawMatches(img1,kp1,img2,kp2,matches,None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     plt.imshow(img3),plt.show()
-    # Extract good matches
-    kp1 = np.float32([kp1[m.queryIdx].pt for m in matches])
-    kp2 = np.float32([kp2[m.trainIdx].pt for m in matches])
-    # Find homography matrix
-    H, mask = cv.findHomography(kp1, kp2, cv.RANSAC, cv.RANSAC)
-    # Use homography
+    # Extract the location of the matching keypoints in both images
+    pts1 = []
+    pts2 = []
+    for match in matches:
+        pts1.append(kp1[match.queryIdx].pt)
+        pts2.append(kp2[match.trainIdx].pt)
+    print(len(pts1))
+    print(len(pts2))
+    # Estimate the homography matrix using RANSAC algorithm
+    pts1 = np.float32(pts1)
+    pts2 = np.float32(pts2)
+    M, mask = cv.estimateAffinePartial2D(pts1, pts2, method=cv.RANSAC, ransacReprojThreshold=5.0)
+    # Use the homography matrix to align the images
     height, width = img2.shape
-    im1Reg = cv.warpPerspective(img1, H, (width, height))
-    return im1Reg
+    aligned_img = cv.warpAffine(img1, M, (img2.shape[1], img2.shape[0]))
+    return aligned_img
 
 def main():
-    take_images()
+    # take_images()
     img1, img2 = preprocess_images()
     dst = feature_base_alignment(img1,img2)
     plt.imshow(dst)
