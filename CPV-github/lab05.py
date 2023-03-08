@@ -47,22 +47,15 @@ def feature_base_alignment(img1,img2):
     # Draw first 10 matches.
     img3 = cv.drawMatches(img1,kp1,img2,kp2,matches,None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     plt.imshow(img3),plt.show()
-    # Extract the location of the matching keypoints in both images
-    pts1 = []
-    pts2 = []
-    for match in matches:
-        pts1.append(kp1[match.queryIdx].pt)
-        pts2.append(kp2[match.trainIdx].pt)
-    print(len(pts1))
-    print(len(pts2))
-    # Estimate the homography matrix using RANSAC algorithm
-    pts1 = np.float32(pts1)
-    pts2 = np.float32(pts2)
-    M, mask = cv.estimateAffinePartial2D(pts1, pts2, method=cv.RANSAC, ransacReprojThreshold=5.0)
-    # Use the homography matrix to align the images
-    height, width = img2.shape
-    aligned_img = cv.warpAffine(img1, M, (img2.shape[1], img2.shape[0]))
-    return aligned_img
+    # Get the location of the best match in the original image
+    img_pts = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
+    # Get the location of the best match in the feature object
+    obj_pts = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
+    # extract the object's rotation and translation
+    M, mask = cv.findHomography(obj_pts, img_pts, cv.RANSAC, 5.0)
+    # warp the image
+    dst = cv.warpPerspective(img1, M, (img1.shape[1], img1.shape[0]))
+    return dst
 
 def main():
     # take_images()
