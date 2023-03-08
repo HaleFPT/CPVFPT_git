@@ -1,130 +1,65 @@
-#RANSAC feature matching and alignment
+# Feature base alignment
 
 import numpy as np
 import cv2 as cv
 import matplotlib.pyplot as plt
-import os
-import sys
-import time
 
+def take_images():
+    cap = cv.VideoCapture(0)
+    captured = 0
+    # if captured = 2 break
+    while True:
+        ret, frame = cap.read()
+        cv.imshow('frame', frame)
+        if cv.waitKey(1) & 0xFF == ord('q'):
+            break
+        if cv.waitKey(1) & 0xFF == ord('c'):
+            captured += 1
+            cv.imwrite('img' + str(captured) + '.jpg', frame)
+            print('Image ' + str(captured) + ' captured')
+        if captured == 2:
+            break
+    cap.release()
+    cv.destroyAllWindows()
 
-def RANSAC_feature_matching(img_captured, img_changed):
-    # Read the images
-    img = cv.imread(img_captured)
-    img_changed = cv.imread(img_changed)
-    img = cv.GaussianBlur(img, (3, 3), 0)
-    img_changed = cv.GaussianBlur(img_changed, (3, 3), 0)
-    img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-    img_changed = cv.cvtColor(img_changed, cv.COLOR_BGR2RGB)
+def preprocess_images():
+    img1 = cv.imread('img1.jpg')
+    img2 = cv.imread('img2.jpg')
+    img1 = cv.cvtColor(img1, cv.COLOR_BGR2GRAY)
+    img2 = cv.cvtColor(img2, cv.COLOR_BGR2GRAY)
+    return img1, img2
 
-
-    # Convert to grayscale
-    img_grey = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
-    height, width= img_grey.shape
-    img_changed_grey = cv.cvtColor(img_changed, cv.COLOR_RGB2GRAY)
-
-    # Configure ORB feature detector Algorithm
-    orb_detector = cv.ORB_create(1000)
-
-    # Extract key points and descriptors for both images
-    keyPoint1, des1 = orb_detector.detectAndCompute(img_grey, None)
-    keyPoint2, des2 = orb_detector.detectAndCompute(img_changed_grey, None)
-
-    # Display keypoints for reference image in green color
-    imgKp_Ref = cv.drawKeypoints(img, keyPoint1, 0, (0, 222, 0), None)
-    imgKp_Ref = cv.resize(imgKp_Ref, (img.shape[1] // 2, img.shape[0] // 2))
-
-    cv.imshow('Key Points', imgKp_Ref)
-    cv.waitKey(0)
-
-    # Match features between two images using Brute Force matcher with Hamming distance
-    matcher = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
-
-    # Match the two sets of descriptors.
-    matches = list(matcher.match(des1, des2))
-
-    # Sort matches on the basis of their Hamming distance.
-    matches.sort(key=lambda x: x.distance)
-
-    # take the top 75% matches forward.
-    matches = matches[:int(len(matches) * 0.9)]
-    no_of_matches = len(matches)
-
-    # Display keypoints for changed image in red color
-    imgKp_Changed = cv.drawKeypoints(img_changed, keyPoint2, 0, (222, 0, 0), None)
-    imgKp_Changed = cv.resize(imgKp_Changed, (img.shape[1] // 2, img.shape[0] // 2))
-
-    # Display both images
-    plt.figure(figsize=(20, 10))
-    plt.subplot(1, 2, 1)
-    plt.imshow(imgKp_Ref)
-    plt.title('Reference Image')
-    plt.subplot(1, 2, 2)
-    plt.imshow(imgKp_Changed)
-    plt.title('Changed Image')
-    plt.show()
-
-    #display the top 100 matches
-    img_matches = cv.drawMatches(img, keyPoint1, img_changed, keyPoint2, matches[:100], None, flags=2)
-
-    plt.figure(figsize=(20, 10))
-    plt.imshow(img_matches)
-    plt.title('Top 100 matches')
-    plt.show()
-
-
-    # Define empty matrices of shape no_of_matches * 2.
-    p1 = np.zeros((no_of_matches, 2))
-    p2 = np.zeros((no_of_matches, 2))
-
-    for i in range(len(matches)):
-        p1[i, :] = keyPoint1[matches[i].queryIdx].pt
-        p2[i, :] = keyPoint2[matches[i].trainIdx].pt
-
-    # Find the homography matrix.
-    homography, mask = cv.findHomography(p1, p2, cv.RANSAC)
-
-    # Use this matrix to transform the
-    # colored image wrt the reference image.
-    transformed_img = cv.warpPerspective(img, homography, (width, height))
-
-    # Shơw the output.
-    plt.figure(figsize=(20, 10))
-    plt.subplot(1, 2, 1)
-    plt.imshow(img)
-    plt.title('Reference Image')
-    plt.subplot(1, 2, 2)
-    plt.imshow(transformed_img)
-    plt.title('Changed Image')
-    plt.show()
+def feature_base_alignment(img1,img2):
+    # Initiate ORB detector
+    orb = cv.ORB_create()
+    # find the keypoints and descriptors with ORB
+    kp1, des1 = orb.detectAndCompute(img1,None)
+    kp2, des2 = orb.detectAndCompute(img2,None)
+    # create BFMatcher object
+    bf = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
+    # Match descriptors.
+    matches = bf.match(des1,des2)
+    # Sort them in the order of their distance.
+    matches = sorted(matches, key = lambda x:x.distance)
+    # Draw first 10 matches.
+    img3 = cv.drawMatches(img1,kp1,img2,kp2,matches[:10],None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    plt.imshow(img3),plt.show()
+    # Extract the keypoints
+    src_pts = np.float32([ kp1[m.queryIdx].pt for m in matches ]).reshape(-1,1,2)
+    dst_pts = np.float32([ kp2[m.trainIdx].pt for m in matches ]).reshape(-1,1,2)
+    # Find the homography matrix
+    M, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC,5.0)
+    # Use the homography matrix to align the images
+    rows,cols = img1.shape
+    dst = cv.warpPerspective(img1,M,(cols,rows))
+    return dst
 
 def main():
-    cam = cv.VideoCapture(0)
-    captured = 0
-    while True:
-        ret, frame = cam.read()
-        cv.imshow('Camera', frame)
-
-        if not ret:
-            break
-        k = cv.waitKey(1)
-
-        if k%256 == 27:
-            # ESC pressed
-            print("Escape hit, closing...")
-            break
-
-        elif k%256 == 32:
-            # SPACE pressed
-            img_name = "opencv_frame_{}.png".format(captured)
-            cv.imwrite(img_name, frame)
-            print("{} written!".format(img_name))
-            captured += 1
-            if captured == 2:
-                break
-    cam.release()
-    cv.destroyAllWindows()
-    RANSAC_feature_matching('opencv_frame_0.png', 'opencv_frame_1.png')
+    take_images()
+    img1, img2 = preprocess_images()
+    dst = feature_base_alignment(img1,img2)
+    plt.imshow(dst)
+    plt.show()
 
 if __name__ == '__main__':
     main()
