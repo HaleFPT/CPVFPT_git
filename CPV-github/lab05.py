@@ -41,18 +41,21 @@ def feature_base_alignment(img1,img2):
     matches = bf.match(des1,des2)
     # Sort them in the order of their distance.
     matches = sorted(matches, key = lambda x:x.distance)
+    # Good matches
+    good = int(len(matches)*0.15)
+    matches = matches[:good]
     # Draw first 10 matches.
-    img3 = cv.drawMatches(img1,kp1,img2,kp2,matches[:10],None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    img3 = cv.drawMatches(img1,kp1,img2,kp2,matches,None,flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
     plt.imshow(img3),plt.show()
-    # Extract the keypoints
-    src_pts = np.float32([ kp1[m.queryIdx].pt for m in matches ]).reshape(-1,1,2)
-    dst_pts = np.float32([ kp2[m.trainIdx].pt for m in matches ]).reshape(-1,1,2)
-    # Find the homography matrix
-    M, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC,5.0)
-    # Use the homography matrix to align the images
-    rows,cols = img1.shape
-    dst = cv.warpPerspective(img1,M,(cols,rows))
-    return dst
+    # Extract good matches
+    kp1 = np.float32([kp1[m.queryIdx].pt for m in matches])
+    kp2 = np.float32([kp2[m.trainIdx].pt for m in matches])
+    # Find homography matrix
+    H, mask = cv.findHomography(kp1, kp2, cv.RANSAC, cv.RANSAC)
+    # Use homography
+    height, width = img2.shape
+    im1Reg = cv.warpPerspective(img1, H, (width, height))
+    return im1Reg
 
 def main():
     take_images()
