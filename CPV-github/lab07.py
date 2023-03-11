@@ -1,49 +1,79 @@
 import numpy as np
 import cv2 as cv
+import os
 from PIL import Image
+import tkinter as tk
 
 mov = 'images/Tiktok video.mov'
 feed = cv.imread('images/Feed.png')
 navBar = cv.imread('images/Nav bar.png')
 sideBar = cv.imread('images/Sidebar.png')
+cap = cv.VideoCapture(mov)
+# 393x852
+cap.set(3, 852)
+cap.set(4, 393)
 
-def button_callback(event, x, y, flags, param):
-    if event == cv.EVENT_LBUTTONDOWN:
-        print("Button clicked at ({}, {})".format(x, y))
-        # call your desired function here, e.g. capture_image()
-        capture_image(img)
+def capture_image():
+    print("capturing")
+    # crop mov to 393x852
 
-def capture_image(img):
     face_detector = cv.CascadeClassifier('haarcascade_frontalface_alt2.xml')
 
     # For each person, enter one numeric face id
     face_id = input('enter user id:  ')
     name = input('enter user name:  ')
 
+    #check if the csv file exists
+    try:
+        with open('StudentDetails.csv', 'r') as f:
+            pass
+    except FileNotFoundError:
+        with open('StudentDetails.csv', 'w') as f:
+            f.write('ID,Name,\n')
+
+    # check if the id is already in the csv file
+    with open('StudentDetails.csv', 'r') as f:
+        for line in f:
+            if face_id in line:
+                print("ID already exists")
+                return
+
     # save name and id in separate columns in csv file
     with open('StudentDetails.csv', 'a') as f:
         f.write(f'{face_id},{name},\n')
+
     print("\nInitializing face capture. Look the camera and wait ...")
+
     # Initialize individual sampling face count
     count = 0
-    while (True):
-        img = cv.flip(img, -1)  # flip video image vertically
-        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-        faces = face_detector.detectMultiScale(gray, 1.3, 5)
 
-        for (x, y, w, h) in faces:
-            cv.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
-            count += 1
+    while True:
+        ret, img = cap.read()
+        if ret:
+            # crop frame
+            img = img[84:852, 0:393]
+            feed[0:852 - 84, 0:393] = img
+            gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+            faces = face_detector.detectMultiScale(gray, 1.3, 5)
 
-            # Save the captured image into the datasets folder
-            cv.imwrite("dataset/User." + str(face_id) + '.' + str(count) + ".jpg", gray[y:y + h, x:x + w])
+            for (x, y, w, h) in faces:
+                cv.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
+                count += 1
 
-        if count >= 30:  # Take 30 face sample and stop video
-            break
+                # Save the captured image into the datasets folder
+                cv.imwrite("dataset/User." + str(face_id) + '.' + str(count) + ".jpg", gray[y:y + h, x:x + w])
 
-    # Do a bit of cleanup
-    print("\nExiting Program and cleanup stuff")
+                cv.imshow('image', img)
 
+            k = cv.waitKey(100) & 0xff  # Press 'ESC' for exiting video
+            if k == 27:
+                break
+            if count >= 30:  # Take 30 face sample and stop video
+                break
+
+    cap.release()
+    cv.destroyAllWindows()
+    print("Image captured")
 
 def training():
     # Path for face image database
@@ -77,17 +107,18 @@ def training():
     faces, ids = getImagesAndLabels(path)
     recognizer.train(faces, np.array(ids))
     # Save the model into trainer/trainer.yml
-    recognizer.write('trainer/trainer.yml')  # recognizer.save() worked on Mac, but not on Pi
+    recognizer.write('trained/trainer.yml')  # recognizer.save() worked on Mac, but not on Pi
 
     # Print the numer of faces trained and end program
-    print("\n [INFO] {0} faces trained. Exiting Program".format(len(np.unique(ids))))
+    print("\n{0} faces trained. Exiting Program".format(len(np.unique(ids))))
+    print("Training complete")
 
 
-def recognizer(img):
+def recognizer():
     recognizer = cv.face.LBPHFaceRecognizer_create()
-    recognizer.read('trainer/trainer.yml')
+    recognizer.read('trained/trainer.yml')
     cascadePath = "haarcascade_frontalface_alt2.xml"
-    faceCascade = cv.CascadeClassifier(cascadePath);
+    faceCascade = cv.CascadeClassifier(cascadePath)
 
     font = cv.FONT_HERSHEY_SIMPLEX
 
@@ -104,77 +135,65 @@ def recognizer(img):
             names.append(line.split(',')[1])
 
     # Define min window size to be recognized as a face
-    minW = 0.1 * cam.get(3)
-    minH = 0.1 * cam.get(4)
+
 
     while True:
-        # img = cv.flip(img, -1)  # Flip vertically
-        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-        faces = faceCascade.detectMultiScale(
-            gray,
-            scaleFactor=1.2,
-            minNeighbors=5,
-            minSize=(int(minW), int(minH)),
-        )
-
-        for (x, y, w, h) in faces:
-            cv.rectangle(img, (x, y), (x + w, y + h), (92, 208, 220), 2)
-            id, confidence = recognizer.predict(gray[y:y + h, x:x + w])
-            # Check if confidence is less then 50% identify it as unknown
-            if (confidence < 50):
-                id = names[id - 1]
-                confidence = "  {0}%".format(round(100 - confidence))
-            else:
-                id = "unknown"
-                confidence = "  {0}%".format(round(100 - confidence))
-
-            cv.putText(img, str(id), (x + 5, y - 5), font, 1, (255, 255, 255), 2)
-            cv.putText(img, str(confidence), (x + 8, y + h - 8), font, 1, (255, 255, 0), 1)
-
-        cv.imshow('camera', img)
-
-        k = cv.waitKey(10) & 0xff  # Press 'ESC' for exiting video
-        if k == 27:
-            break
-
-
-def main():
-    # crop mov to 393x852
-    cap = cv.VideoCapture(mov)
-    # 393x852
-    cap.set(3, 852)
-    cap.set(4, 393)
-    # create black window for menu control using opencv
-    control = np.zeros((852, 393, 3), np.uint8)
-
-    cv.setMouseCallback('control', button_callback)
-    while True:
-        ret, frame = cap.read()
+        ret, img = cap.read()
         if ret:
             # crop frame
-            frame = frame[84:852, 0:393]
-            feed[0:852-84, 0:393] = frame
+            img = img[84:852, 0:393]
+            feed[0:852 - 84, 0:393] = img
+            # Define min window size to be recognized as a face
+            minW = 0.1 * img.shape[1]
+            minH = 0.1 * img.shape[0]
+            # img = cv.flip(img, -1)  # Flip vertically
+            gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+            faces = faceCascade.detectMultiScale(
+                gray,
+                scaleFactor=1.2,
+                minNeighbors=5,
+                minSize=(int(minW), int(minH)),
+            )
 
-            cv.imshow('frame', feed)
+            for (x, y, w, h) in faces:
+                cv.rectangle(img, (x, y), (x + w, y + h), (92, 208, 220), 2)
+                id, confidence = recognizer.predict(gray[y:y + h, x:x + w])
+                # Check if confidence is less then 50% identify it as unknown
+                if (confidence < 50):
+                    id = names[id - 1]
+                    confidence = "  {0}%".format(round(100 - confidence))
+                else:
+                    id = "unknown"
+                    confidence = "  {0}%".format(round(100 - confidence))
 
-            # add a button to the window
-            button_text = "Capture Image"
-            button_position = (50, 50)
-            button_size = (200, 50)
-            cv.rectangle(control, button_position,
-                          (button_position[0] + button_size[0], button_position[1] + button_size[1]), (0, 255, 0),
-                          thickness=-1)
-            cv.putText(control, button_text, (button_position[0] + 10, button_position[1] + 35),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-            cv.imshow('control', control)
+                cv.putText(img, str(id), (x + 5, y - 5), font, 1, (255, 255, 255), 2)
+                cv.putText(img, str(confidence), (x + 8, y + h - 8), font, 1, (255, 255, 0), 1)
 
-            if cv.waitKey(1) & 0xFF == ord('q'):
+            cv.imshow('camera', img)
+
+            k = cv.waitKey(10) & 0xff  # Press 'ESC' for exiting video
+            if k == 27:
                 break
-        else:
-            break
+
+            # check if the frame is None, if so, break out of the loop
+            if img is None:
+                break
 
     cap.release()
     cv.destroyAllWindows()
+
+
+def main():
+    controler = tk.Tk()
+    controler.title("Controler")
+    controler.geometry("300x300")
+    capture = tk.Button(controler, text="Capture", command=lambda: capture_image())
+    train = tk.Button(controler, text="Train", command=lambda: training())
+    recognize = tk.Button(controler, text="Recognize", command=lambda: recognizer())
+    capture.pack()
+    train.pack()
+    recognize.pack()
+    controler.mainloop()
 
 if __name__ == '__main__':
     main()
