@@ -1,50 +1,27 @@
-import pathlib as pl
+# image stiching
 
-import cv2
+import numpy as np
+import cv2 as cv
+import matplotlib.pyplot as plt
+import glob
 
-imgdir = pl.Path('panorama')
+# load images
+imgdir = 'panorama/*.jpg'
+images = [cv.imread(file) for file in glob.glob(imgdir)]
 
+# stitcher
+stitcher = cv.Stitcher.create()
+(status, stitched) = stitcher.stitch(images)
 
-def captureImg():
-    cap = cv2.VideoCapture(0)
-    cv2.namedWindow('frame')
+# show result
+if status == 0:
+    cv.imshow('Stitched', stitched)
+    cv.waitKey(0)
+else:
+    print('Error during stitching')
 
-    for i in range(50):
-        ret, frame = cap.read()
-        cv2.imshow('frame', frame)
-        cv2.imwrite(str(imgdir / f'panorama{i}.jpg'), frame)
-        cv2.waitKey(1000)
+# save result
+cv.imwrite('panorama/stitched.jpg', stitched)
 
-    cap.release()
-    cv2.destroyAllWindows()
-
-
-# panorama stiching
-def stitch_images():
-    images = []
-    # load images
-    for i in range(len(list(imgdir.glob('*.jpg')))):
-        img = cv2.imread(str(imgdir / f'panorama{i}.jpg'))
-        if i == 1:
-            images = [img]
-        else:
-            images.append(img)
-
-    # create stitcher
-    stitcher = cv2.Stitcher.create()
-
-    # stitch images
-    status, result = stitcher.stitch(images)
-
-    # display result
-    if status == cv2.Stitcher_OK:
-        cv2.imshow('Stitched image', result)
-        cv2.waitKey()
-        cv2.destroyAllWindows()
-    else:
-        print('Stitching failed')
-
-
-if __name__ == '__main__':
-    # captureImg()
-    stitch_images()
+# close all windows
+cv.destroyAllWindows()
