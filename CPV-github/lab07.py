@@ -5,9 +5,6 @@ from PIL import Image
 import tkinter as tk
 
 mov = 'images/Tiktok video.mov'
-feed = cv.imread('images/Feed.png')
-navBar = cv.imread('images/Nav bar.png')
-sideBar = cv.imread('images/Sidebar.png')
 cap = cv.VideoCapture(mov)
 # 393x852
 cap.set(3, 852)
@@ -24,12 +21,9 @@ def capture_image():
     name = input('enter user name:  ')
 
     #check if the csv file exists
-    try:
-        with open('StudentDetails.csv', 'r') as f:
-            pass
-    except FileNotFoundError:
+    if not os.path.exists('StudentDetails.csv'):
         with open('StudentDetails.csv', 'w') as f:
-            f.write('ID,Name,\n')
+            f.write('id,name,\n')
 
     # check if the id is already in the csv file
     with open('StudentDetails.csv', 'r') as f:
@@ -42,35 +36,31 @@ def capture_image():
     with open('StudentDetails.csv', 'a') as f:
         f.write(f'{face_id},{name},\n')
 
-    print("\nInitializing face capture. Look the camera and wait ...")
+    # check if the dataset folder exists and create it if it doesn't
+    if not os.path.exists('dataset'):
+        os.mkdir('dataset')
 
-    # Initialize individual sampling face count
     count = 0
+
+    print("\nInitializing face capture. Look the camera and wait ...")
 
     while True:
         ret, img = cap.read()
         if ret:
-            # crop frame
-            img = img[84:852, 0:393]
-            feed[0:852 - 84, 0:393] = img
             gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
             faces = face_detector.detectMultiScale(gray, 1.3, 5)
-
+            # wait for 5 seconds to capture image after pressing c
             for (x, y, w, h) in faces:
                 cv.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
                 count += 1
-
                 # Save the captured image into the datasets folder
                 cv.imwrite("dataset/User." + str(face_id) + '.' + str(count) + ".jpg", gray[y:y + h, x:x + w])
-
                 cv.imshow('image', img)
-
             k = cv.waitKey(100) & 0xff  # Press 'ESC' for exiting video
             if k == 27:
                 break
-            if count >= 30:  # Take 30 face sample and stop video
+            elif count >= 30:  # Take 30 face sample and stop video
                 break
-
     cap.release()
     cv.destroyAllWindows()
     print("Image captured")
@@ -115,6 +105,7 @@ def training():
 
 
 def recognizer():
+    print("recognizing")
     recognizer = cv.face.LBPHFaceRecognizer_create()
     recognizer.read('trained/trainer.yml')
     cascadePath = "haarcascade_frontalface_alt2.xml"
@@ -124,6 +115,16 @@ def recognizer():
 
     # iniciate id counter
     id = []
+
+    # check if the dataset folder exists and create it if it doesn't
+    if not os.path.exists('dataset'):
+        os.makedirs('dataset')
+
+    # check if the dataset have images
+    if len(os.listdir('dataset')) == 0:
+        print("No images in dataset folder")
+        return
+
     # extract name from dataset folder
     for i in os.listdir('dataset'):
         id.append(i.split('.')[1])
@@ -140,10 +141,6 @@ def recognizer():
     while True:
         ret, img = cap.read()
         if ret:
-            # crop frame
-            img = img[84:852, 0:393]
-            feed[0:852 - 84, 0:393] = img
-            # Define min window size to be recognized as a face
             minW = 0.1 * img.shape[1]
             minH = 0.1 * img.shape[0]
             # img = cv.flip(img, -1)  # Flip vertically
@@ -170,23 +167,37 @@ def recognizer():
                 cv.putText(img, str(confidence), (x + 8, y + h - 8), font, 1, (255, 255, 0), 1)
 
             cv.imshow('camera', img)
-
             k = cv.waitKey(10) & 0xff  # Press 'ESC' for exiting video
             if k == 27:
                 break
-
-            # check if the frame is None, if so, break out of the loop
-            if img is None:
-                break
-
+        else:
+            break
     cap.release()
     cv.destroyAllWindows()
 
+def delete_images():
+    for i in os.listdir('dataset'):
+        os.remove('dataset/' + i)
+    print("Images deleted")
+
+def delete_trained():
+    os.remove('trained/trainer.yml')
+    print("Trained deleted")
+
+def delete_csv():
+    os.remove('StudentDetails.csv')
+    print("CSV deleted")
+
+def delete_all():
+    delete_images()
+    delete_trained()
+    delete_csv()
+    print("All deleted")
 
 def main():
     controler = tk.Tk()
     controler.title("Controler")
-    controler.geometry("300x300")
+    controler.geometry("150x200")
     capture = tk.Button(controler, text="Capture", command=lambda: capture_image())
     train = tk.Button(controler, text="Train", command=lambda: training())
     recognize = tk.Button(controler, text="Recognize", command=lambda: recognizer())
@@ -195,5 +206,7 @@ def main():
     recognize.pack()
     controler.mainloop()
 
+
 if __name__ == '__main__':
-    main()
+    delete_all()
+    # main()
