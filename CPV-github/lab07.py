@@ -208,5 +208,5 @@ def main():
 
 
 if __name__ == '__main__':
-    delete_all()
-    # main()
+    # delete_all()
+    main()

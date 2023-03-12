@@ -1,30 +1,18 @@
-import cv2 as cv
-import matplotlib.pyplot as plt
-import numpy as np
-import tkinter as tk
+# check opencv gpu
+import cv2
 
-def capture():
-    print("capture")
+print(cv2.__version__)
 
-def training():
-    print("training")
+if cv2.cuda.getCudaEnabledDeviceCount() > 0:
+    print("CUDA is available")
+else:
+    print("CUDA is not available")
 
-def recognizer():
-    print("recognizer")
+# check tensorflow gpu
+import tensorflow as tf
+print(tf.__version__)
 
-# create menu with buttons using tkinter
-root = tk.Tk()
-root.title("Face Recognition System")
-root.geometry("300x300")
-root.resizable(False, False)
-capture_button = tk.Button(root, text="Capture", command=capture)
-training_button = tk.Button(root, text="Training", command=training)
-recognizer_button = tk.Button(root, text="Recognizer", command=recognizer)
-capture_button.pack()
-training_button.pack()
-recognizer_button.pack()
-root.mainloop()
-
-
-
-
+if tf.test.is_gpu_available():
+    print("CUDA is available")
+else:
+    print("CUDA is not available")
