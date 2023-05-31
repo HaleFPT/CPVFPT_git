@@ -37,8 +37,8 @@ def capture_image():
         f.write(f'{face_id},{name},\n')
 
     # check if the dataset folder exists and create it if it doesn't
-    if not os.path.exists('dataset'):
-        os.mkdir('dataset')
+    if not os.path.exists('../dataset'):
+        os.mkdir('../dataset')
 
     count = 0
 
@@ -67,7 +67,7 @@ def capture_image():
 
 def training():
     # Path for face image database
-    path = 'dataset'
+    path = '../dataset'
 
     recognizer = cv.face.LBPHFaceRecognizer_create()
     detector = cv.CascadeClassifier("haarcascade_frontalface_alt2.xml")
@@ -117,16 +117,16 @@ def recognizer():
     id = []
 
     # check if the dataset folder exists and create it if it doesn't
-    if not os.path.exists('dataset'):
-        os.makedirs('dataset')
+    if not os.path.exists('../dataset'):
+        os.makedirs('../dataset')
 
     # check if the dataset have images
-    if len(os.listdir('dataset')) == 0:
+    if len(os.listdir('../dataset')) == 0:
         print("No images in dataset folder")
         return
 
     # extract name from dataset folder
-    for i in os.listdir('dataset'):
+    for i in os.listdir('../dataset'):
         id.append(i.split('.')[1])
 
     # names related to ids (StudentDetails.csv)
@@ -176,7 +176,7 @@ def recognizer():
     cv.destroyAllWindows()
 
 def delete_images():
-    for i in os.listdir('dataset'):
+    for i in os.listdir('../dataset'):
         os.remove('dataset/' + i)
     print("Images deleted")
 

@@ -52,7 +52,7 @@ def capture_image():
 
 def training():
     # Path for face image database
-    path = 'dataset'
+    path = '../dataset'
 
     recognizer = cv2.face.LBPHFaceRecognizer_create()
     detector = cv2.CascadeClassifier("haarcascade_frontalface_alt2.xml")
@@ -99,7 +99,7 @@ def recognizer():
     # iniciate id counter
     id = []
     # extract name from dataset folder
-    for i in os.listdir('dataset'):
+    for i in os.listdir('../dataset'):
         id.append(i.split('.')[1])
 
     # names related to ids (StudentDetails.csv)

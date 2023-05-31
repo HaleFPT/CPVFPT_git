@@ -5,7 +5,7 @@ import numpy as np
 
 # load faces ('Faces') and take the name
 har = cv.CascadeClassifier('haarcascade_frontalface_alt2.xml')
-Path = 'Faces'
+Path = '../Faces'
 path = pl.Path(Path)
 files = path.glob('*.jpg')
 # save faces in processed images (imwrite)
